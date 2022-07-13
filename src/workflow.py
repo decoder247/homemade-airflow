@@ -128,4 +128,6 @@ if __name__ == "__main__":
     """
     - Parse cron string
     - Implement scheduling logic
+
+    - Try extending the example_job script and see if it works with other imports etc.
     """
