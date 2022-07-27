@@ -54,8 +54,6 @@ def construct_argparser() -> ArgumentParser:
 
 
 if __name__ == "__main__":
-    # Hardcoded
-
     # Parses the first command first to determine program
     if len(argv) > 1 and argv[1] in Config.ACCEPTED_PROGRAMS:
         program_mode = argv[1]

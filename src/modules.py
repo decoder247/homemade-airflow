@@ -1,10 +1,10 @@
 import json
 import sys
-import time
 from importlib import import_module
 from inspect import isclass
 from os import sep
 from os.path import dirname, join, splitext
+from time import sleep
 
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -56,10 +56,10 @@ class Watcher:
         self.observer.start()
         try:
             while True:
-                time.sleep(5)
-        except:
+                sleep(5)
+        except Exception as e:
             self.observer.stop()
-            print("Watchdog Error!!")
+            print(f"Watchdog Error!! - {e}")
 
         self.observer.join()
 
@@ -67,6 +67,8 @@ class Watcher:
 class Orchestrator:
     """
     Main orchestrator method
+
+    TODO: Allow more input paths, i.e. schedule "/asd/folder1" "/asd/folder2"
     """
 
     def __init__(
@@ -79,7 +81,7 @@ class Orchestrator:
         self.runtime_minutes = runtime_minutes
         self.files_detected_per_path = dict()
         self.pipeline_objects_per_path = dict()
-        self.scheduler = Scheduling()
+        self.scheduling = Scheduling()
 
         # first Remove any trailing '/' if present
         workflow_input_paths = [dirname(join(p, "")) for p in workflow_input_paths]
@@ -105,55 +107,51 @@ class Orchestrator:
             ]  # Replace only first instance
             self.files_detected_per_path[input_path] = basename_list
 
-        # Print output
         if not silent:
-            # Print out filepaths
             print(
-                f"Here are the python files present in the specified paths:\n",
+                f"Python files present in {input_path}:\n",
                 f"{json.dumps(self.files_detected_per_path, indent=4, sort_keys=True)}",
             )
 
     def execute(self):
-        # TODO: ONLY deals with 1 example script!! -> Should do multiple scripts + multiple input folders to watch as well!
-        # TODO: Flat import, flattened to list of all job_modules / pipelines. Should use -> self.pipeline_objects_per_path
-
-        # Import dag modules, explicitly specify only the following
-        job_modules = self.import_dag_modules(
-            self.files_detected_per_path, ["example_job"]
-        )
-
-        # Get all pipeline objects defined in the targetd job script
-        pipeline_objects = []
-        [
-            pipeline_objects.extend(self.get_pipeline_objects(job_module))
-            for job_module in job_modules
-        ]
-
-        # Test running the pipeline defined in job
-        print(f"Full import of all pipeline_objects -> {pipeline_objects}")
-        print(
-            f"Here is the class attribute for instantiated jobs -> {Pipeline._pipeline_list}"
-        )
-
-        # TODO: Print all scheduled tasks for each pipeline
-        for pipeline_object in pipeline_objects:
-            print(f"{pipeline_object.name} ==> {pipeline_object.task_list}")
-
-        # TODO: Print schedule of execution for pipelines
-
+        # TODO: Execute scheduling class
         # TODO: Give visual representation of connected tasks
+        # TODO: Need a runner, that monitors every (i.e. minute) and executes when schedule is met
+        # TODO: Cron string parsing + scheduling logic
+        # TODO: Try extending the example_job script and see if it works with other imports etc.
+
+        _ = self.import_dag_modules(
+            self.files_detected_per_path, only_import_list=["example_job"]
+        )
+
+        # Print pipelines in schedule
+        print(f"Pipeline queue \t\t\t\t==> {self.scheduling.queue}")
+        print(
+            f"Pipelines defined and imported \t\t==> {[p.name for p in self.scheduling.pipeline_list]}"
+        )
+        for p in self.scheduling.pipeline_list:
+            print(f"Tasks in '{p.name}' \t\t==> {p.task_list}")
+
+        # NOTE: REFRESH dag cycle
+        # Create dag for each (changed) pipeline
+        # Check each node is connected
+        # Get the sequence
+        # Show graph
+        for p in self.scheduling.pipeline_list:
+            p.create_dag()
+            p.show_dag()
 
         # Run watchdog (For refreshing any time a new file is added)
         watcher = Watcher(Config.WATCHED_FOLDER)
         watcher.run()
 
-        # TODO: Remaining
-        """
-        - Parse cron string
-        - Implement scheduling logic
-
-        - Try extending the example_job script and see if it works with other imports etc.
-        """
+    def _OLD(self, imported_job_modules: list):
+        # Get all pipeline objects defined in the targetd job script
+        pipeline_objects = []
+        [
+            pipeline_objects.extend(self.get_pipeline_objects(job_module))
+            for job_module in imported_job_modules
+        ]
 
     @staticmethod
     def get_pipeline_objects(imported_dag_module):

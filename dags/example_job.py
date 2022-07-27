@@ -15,7 +15,8 @@ second_pipeline = Pipeline(name="another_example_job", schedule="* * * * * *")
 
 # Create 2 tasks
 task_1 = PythonTask("print_hello", python_callable=print_hello, pipeline=pipeline)
-task_2 = PythonTask(
+task_2 = PythonTask("print_world", python_callable=print_world, pipeline=pipeline)
+task_3 = PythonTask(
     "print_world", python_callable=print_world, pipeline=second_pipeline
 )
 
@@ -27,5 +28,5 @@ task_2 = PythonTask(
 
 # )
 
-# task_1.set_downstream(task_2)
+task_1.set_downstream(task_2)
 # task_2.set_downstream(task_3)
