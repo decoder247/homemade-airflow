@@ -1,0 +1,7 @@
+celery[redis]
+watchdog
+
+# Only required to get import of utils file to work
+croniter
+networkx
+pydot

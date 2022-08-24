@@ -78,4 +78,6 @@ if __name__ == "__main__":
     orchid = Orchestrator(workflow_input_paths, runtime_minutes, silent=False)
 
     # Execute orchestrator
+    # orchid.execute_celery()
+    sleep(10)
     orchid.execute()

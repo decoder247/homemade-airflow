@@ -1,7 +1,0 @@
-croniter
-watchdog
-networkx
-pydot
-
-# optional? resolved from dependency
-# graphviz

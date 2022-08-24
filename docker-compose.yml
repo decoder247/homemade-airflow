@@ -1,0 +1,135 @@
+version: "3.2"
+
+services:
+  redis:
+    container_name: redis
+    hostname: redis
+    image: redis:alpine
+    ports:
+      - 6379:6379
+    links:
+      - redis-commander
+    restart: always
+
+  redis-commander:
+    container_name: redis-commander
+    hostname: redis-commander
+    image: rediscommander/redis-commander:latest
+    ports:
+      - 8081:8081
+    environment:
+      - REDIS_HOSTS=redis
+    restart: always
+
+  flower:
+    image: mher/flower:1.2.0
+    working_dir: /app
+    ports:
+      - 5555:5555
+    volumes:
+      - app-data:/data
+    env_file:
+      - ./variables_compose.env
+    depends_on:
+      - redis
+    entrypoint: >
+      celery 
+        --broker=redis://redis:6379/0 
+        flower  
+        --port=5555
+
+  orchestrator-1:
+    container_name: orchestrator-1
+    hostname: orchestrator-1
+    image: hma-orchestrator:latest
+    build:
+      context: ./src
+      dockerfile: orchestrator/Dockerfile
+    env_file:
+      - ./variables_compose.env
+      - ./src/orchestrator/variables.env
+    working_dir: /app
+    volumes:
+      - app-data:/data
+      #- ./src/dags:/dags
+    entrypoint: >
+      python -u main.py scheduler /dags
+    restart: always
+    depends_on:
+      - redis
+
+  worker-1:
+    container_name: worker-1
+    hostname: worker-1
+    image: hma-worker:latest
+    build:
+      context: ./src
+      dockerfile: worker/Dockerfile
+    env_file:
+      - ./variables_compose.env
+      - ./src/worker/variables.env
+    working_dir: /app
+    volumes:
+      # - ./src/worker:/app
+      - app-data:/data
+    entrypoint: >
+      watchmedo auto-restart --directory=/app --pattern=*.py --recursive 
+        -- celery -A main worker --loglevel=INFO
+    restart: always
+    depends_on:
+      - redis
+      - orchestrator-1
+
+volumes:
+  app-data:
+
+    # worker-1:
+    #   env_file:
+    #     #- ./worker/variables_worker.env
+    #     - ./variables.env
+    #   environment:
+    #     CELERY_BROKER_URL: redis://redis
+    #     CELERY_RESULT_BACKEND: redis://redis
+    #     PYTHONPATH: /data
+    #   image: homemade-airflow:latest
+    #   build:
+    #     context: ./src
+    #     dockerfile: box_segmentation/Dockerfile
+    #   restart: always
+    #   volumes:
+    #     - ./src:/app
+    #     - app-data:/data
+    #   working_dir: /app
+    #   depends_on:
+    #     - redis
+    #   entrypoint: >
+    #     watchmedo auto-restart --directory=/app --pattern=*.py --recursive 
+    #       -- celery -A worker.app worker 
+    #         --hostname=measuring-worker-1@%h 
+    #         -c ${CELERY_CONCURRENCY} 
+    #         --loglevel=info 
+    #         -Q measuring 
+    #         --uid=nobody 
+    #         --gid=nogroup
+
+
+
+
+    # --broker=redis://redis:6379/0 -Q downloader,pubsub_task,preprocessing,stitching,box_segmentation,plant_segmentation,measuring
+    # command: celery -A tasks flower
+
+    # prometheus:
+    #   image: prom/prometheus
+    #   volumes:
+    #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    #   ports:
+    #     - 9090:9090
+
+    # grafana:
+    #   image: grafana/grafana
+    #   depends_on:
+    #     - prometheus
+    #   ports:
+    #     - 3000:3000
+
+

@@ -1,0 +1,8 @@
+croniter
+watchdog
+networkx
+pydot
+graphviz
+numpy
+scikit-learn
+celery[redis]
