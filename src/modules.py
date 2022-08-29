@@ -3,7 +3,7 @@ from datetime import datetime as dt
 from importlib import import_module
 from inspect import isclass
 from os import cpu_count, sep
-from os.path import dirname, join, splitext
+from os.path import dirname, exists, isfile, join, splitext
 from time import sleep
 
 from celery import Celery, chain, signature
@@ -147,9 +147,12 @@ class Orchestrator:
             print(f"Tasks in '{p.pipeline_id}' \t=> {p.task_list}")
 
         # Create the task flows (DAGs) per defined pipeline
+        view_flag = not is_docker()  # Dynamically don't view dag
+        if is_docker():
+            print(f"Running on docker container!!")
         for p in self.scheduling.pipeline_list:
             p.create_dag(silent=False)
-            p.show_dag(silent=False, view=False)
+            p.show_dag(silent=False, view=view_flag)
             p.refresh_task_queue()
             print(
                 f"Order of task sequence for '{p.pipeline_id}' -> ",
@@ -159,8 +162,8 @@ class Orchestrator:
         # Get the base queue -> queue of times for each pipeline
         # Then, build / resolve the main queue -> queue times of earliest pipeline
         # NOTE: resolving queue will remove things from base queue!!
-        self.scheduling.refresh_base_queue()
         self.scheduling.resolve_queue(silent=False)
+        # When being resolved -> if pipeline is finished, state should be updated...
 
         # Print for debugging purposes
         for key, dt_list in self.scheduling.pipeline_base_queue.items():
